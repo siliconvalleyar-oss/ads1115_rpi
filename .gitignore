@@ -1,0 +1,5 @@
+*.o
+*.a
+*.so
+bin/ads1115
+obj/
