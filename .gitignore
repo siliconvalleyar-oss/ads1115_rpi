@@ -3,3 +3,4 @@
 *.so
 bin/ads1115
 obj/
+logs/*.csv

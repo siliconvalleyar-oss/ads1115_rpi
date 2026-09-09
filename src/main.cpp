@@ -5,9 +5,13 @@
 #include <ctime>
 #include <cstdlib>
 #include <ncurses.h>
+#include <sys/stat.h>
 
 void save_log_csv(const char *filename, float v0, float v1, float v2, float v3) {
-    FILE *f = fopen(filename, "a");
+    mkdir("logs", 0777);
+    char path[256];
+    snprintf(path, sizeof(path), "logs/%s", filename);
+    FILE *f = fopen(path, "a");
     if (!f) return;
 
     time_t now = time(nullptr);
