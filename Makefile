@@ -8,8 +8,8 @@ OBJDIR := obj
 BINDIR := bin
 
 TARGET := $(BINDIR)/ads1115
-SOURCES := $(SRCDIR)/main.cc $(SRCDIR)/ads1115.cc
-OBJECTS := $(SOURCES:$(SRCDIR)/%.cc=$(OBJDIR)/%.o)
+SOURCES := $(SRCDIR)/main.cpp $(SRCDIR)/ads1115.cpp
+OBJECTS := $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 
 .PHONY: all clean
 
@@ -18,7 +18,7 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS) | $(BINDIR)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.cc | $(OBJDIR)
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(BINDIR):
