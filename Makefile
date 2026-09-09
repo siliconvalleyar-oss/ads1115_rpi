@@ -11,7 +11,7 @@ TARGET := $(BINDIR)/ads1115
 SOURCES := $(SRCDIR)/main.cpp $(SRCDIR)/ads1115.cpp
 OBJECTS := $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 
-.PHONY: all clean
+.PHONY: all clean run
 
 all: $(TARGET)
 
@@ -29,3 +29,6 @@ $(OBJDIR):
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)
+
+run: $(TARGET)
+	./$(TARGET)
