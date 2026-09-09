@@ -1,22 +1,48 @@
 #include "ads1115.h"
-#include <iostream>
+#include <cstdio>
+#include <cstring>
+#include <cerrno>
+#include <fcntl.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/i2c-dev.h>
 
-ADS1115::ADS1115(uint8_t addr) : address(addr), current_channel(0) {}
+ADS1115::ADS1115(uint8_t addr) : address(addr), current_channel(0), fd(-1) {}
+
+bool ADS1115::i2c_write(const uint8_t *buf, uint32_t len) {
+    if (fd < 0) return false;
+    ssize_t written = write(fd, buf, len);
+    return written == static_cast<ssize_t>(len);
+}
+
+bool ADS1115::i2c_read(uint8_t *buf, uint32_t len) {
+    if (fd < 0) return false;
+    ssize_t read_bytes = read(fd, buf, len);
+    return read_bytes == static_cast<ssize_t>(len);
+}
 
 bool ADS1115::init() {
-    if (!bcm2835_init()) {
-        std::cerr << "Error al inicializar bcm2835" << std::endl;
+    fd = open("/dev/i2c-1", O_RDWR);
+    if (fd < 0) {
+        perror("Error al abrir /dev/i2c-1");
         return false;
     }
-    bcm2835_i2c_begin();
-    bcm2835_i2c_setSlaveAddress(address);
+
+    if (ioctl(fd, I2C_SLAVE, address) < 0) {
+        perror("Error al configurar direccion I2C");
+        ::close(fd);
+        fd = -1;
+        return false;
+    }
+
     return true;
 }
 
 void ADS1115::close() {
-    bcm2835_i2c_end();
-    bcm2835_close();
+    if (fd >= 0) {
+        ::close(fd);
+        fd = -1;
+    }
 }
 
 uint16_t ADS1115::build_config(uint8_t channel) {
@@ -36,24 +62,30 @@ bool ADS1115::set_channel(uint8_t channel) {
 }
 
 int16_t ADS1115::read_raw() {
+    if (fd < 0) return 0;
+
     uint16_t config = build_config(current_channel);
     uint8_t buf[3];
     buf[0] = 0x01; // Config register
     buf[1] = (config >> 8) & 0xFF;
     buf[2] = config & 0xFF;
 
-    bool ok = bcm2835_i2c_write(reinterpret_cast<const char *>(buf), 3) == BCM2835_I2C_REASON_OK;
-    if (!ok) {
-        std::cerr << "Error al escribir configuracion I2C" << std::endl;
+    if (!i2c_write(buf, 3)) {
+        perror("Error al escribir configuracion I2C");
         return 0;
     }
+
     usleep(8000); // Wait for conversion
 
     uint8_t reg = 0x00; // Conversion register
+    if (!i2c_write(&reg, 1)) {
+        perror("Error al seleccionar registro conversion");
+        return 0;
+    }
+
     uint8_t data[2];
-    ok = bcm2835_i2c_write_read_rs(reinterpret_cast<char *>(&reg), 1, reinterpret_cast<char *>(data), 2) == BCM2835_I2C_REASON_OK;
-    if (!ok) {
-        std::cerr << "Error al leer conversion I2C" << std::endl;
+    if (!i2c_read(data, 2)) {
+        perror("Error al leer datos conversion");
         return 0;
     }
 

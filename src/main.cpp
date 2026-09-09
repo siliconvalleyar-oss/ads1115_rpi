@@ -29,6 +29,8 @@ int main() {
     ADS1115 adc(0x48);
 
     if (!adc.init()) {
+        fprintf(stderr, "Error: no se pudo inicializar ADS1115 en 0x48\n");
+        fprintf(stderr, "Verifique conexion I2C y ejecute con sudo.\n");
         return 1;
     }
 
@@ -58,7 +60,7 @@ int main() {
             snprintf(logfile, sizeof(logfile), "log_ads1115_%s.csv", timestr);
 
             printf("Guardando log en: %s\n", logfile);
-            printf("Presione '0' para detener...\n\n");
+            printf("Presione '0' y Enter para detener...\n\n");
 
             bool measuring = true;
             int count = 0;
@@ -75,7 +77,7 @@ int main() {
                 printf("Canal 1: %.2f V\n", v[1]);
                 printf("Canal 2: %.2f V\n", v[2]);
                 printf("Canal 3: %.2f V\n", v[3]);
-                printf("\nPresione '0' para detener...\n");
+                printf("\nPresione '0' y Enter para detener...\n");
 
                 if (count % 10 == 0) {
                     save_log_csv(logfile, v[0], v[1], v[2], v[3]);

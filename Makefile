@@ -1,6 +1,5 @@
 CXX ?= g++
 CXXFLAGS := -std=c++11 -Wall -Wextra -Iinclude
-LDFLAGS := -lbcm2835
 
 SRCDIR := src
 INCDIR := include
@@ -16,7 +15,7 @@ OBJECTS := $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS) | $(BINDIR)
-	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(CXXFLAGS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
@@ -31,4 +30,4 @@ clean:
 	rm -f $(OBJECTS) $(TARGET)
 
 run: $(TARGET)
-	./$(TARGET)
+	sudo ./$(TARGET)
