@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <ctime>
 #include <cstdlib>
+#include <ncurses.h>
 
 void save_log_csv(const char *filename, float v0, float v1, float v2, float v3) {
     FILE *f = fopen(filename, "a");
@@ -17,12 +18,23 @@ void save_log_csv(const char *filename, float v0, float v1, float v2, float v3) 
     fclose(f);
 }
 
-void show_menu() {
-    printf("\n=== MENU ADS1115 ===\n");
-    printf("1) Medir una vez\n");
-    printf("2) Medir continuamente\n");
-    printf("3) Salir\n");
-    printf("Opcion: ");
+void draw_menu(WINDOW *menu_win) {
+    werase(menu_win);
+    mvwprintw(menu_win, 0, 0, "=== MENU ADS1115 ===");
+    mvwprintw(menu_win, 1, 0, "1) Medir una vez");
+    mvwprintw(menu_win, 2, 0, "2) Medir continuamente");
+    mvwprintw(menu_win, 3, 0, "3) Salir");
+    mvwprintw(menu_win, 4, 0, "Opcion: ");
+    wrefresh(menu_win);
+}
+
+void draw_measurements(WINDOW *meas_win, float v0, float v1, float v2, float v3) {
+    werase(meas_win);
+    mvwprintw(meas_win, 0, 0, "Canal 0: %.4f V", v0);
+    mvwprintw(meas_win, 1, 0, "Canal 1: %.4f V", v1);
+    mvwprintw(meas_win, 2, 0, "Canal 2: %.4f V", v2);
+    mvwprintw(meas_win, 3, 0, "Canal 3: %.4f V", v3);
+    wrefresh(meas_win);
 }
 
 int main() {
@@ -34,65 +46,78 @@ int main() {
         return 1;
     }
 
-    int opcion = 0;
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    nodelay(stdscr, TRUE);
+
+    int meas_height = 8;
+    int menu_height = 8;
+    int meas_width = 40;
+    int menu_width = 40;
+    int meas_y = 0;
+    int menu_y = meas_height + 1;
+
+    WINDOW *meas_win = newwin(meas_height, meas_width, meas_y, 0);
+    WINDOW *menu_win = newwin(menu_height, menu_width, menu_y, 0);
+    box(meas_win, 0, 0);
+    box(menu_win, 0, 0);
+
     bool running = true;
+    bool measuring = false;
+    int count = 0;
+    char logfile[128] = {0};
 
     while (running) {
-        show_menu();
-        if (scanf("%d", &opcion) != 1) {
-            while (getchar() != '\n');
-            continue;
+        if (!measuring) {
+            draw_menu(menu_win);
         }
-        while (getchar() != '\n');
 
-        if (opcion == 1) {
+        int ch = getch();
+        if (ch == '3' || ch == 'q' || ch == 'Q') {
+            running = false;
+            break;
+        } else if (ch == '1') {
+            measuring = true;
+            float v[4] = {0};
             for (int i = 0; i < 4; i++) {
                 adc.set_channel(i);
-                int16_t raw = adc.read_raw();
-                float voltage = adc.read_voltage();
-                printf("Canal %d: %d (%.2f V)\n", i, raw, voltage);
+                v[i] = adc.read_voltage();
             }
-        } else if (opcion == 2) {
-            char logfile[128];
-            time_t now = time(nullptr);
-            char timestr[64];
-            strftime(timestr, sizeof(timestr), "%Y%m%d_%H%M%S", localtime(&now));
-            snprintf(logfile, sizeof(logfile), "log_ads1115_%s.csv", timestr);
-
-            printf("Guardando log en: %s\n", logfile);
-            printf("Presione '0' y Enter para detener...\n\n");
-
-            bool measuring = true;
-            int count = 0;
-            while (measuring) {
-                float v[4];
-                for (int i = 0; i < 4; i++) {
-                    adc.set_channel(i);
-                    v[i] = adc.read_voltage();
-                }
-
-                printf("\033[5A\r");
-                printf("\033[J");
-                printf("Canal 0: %.2f V\n", v[0]);
-                printf("Canal 1: %.2f V\n", v[1]);
-                printf("Canal 2: %.2f V\n", v[2]);
-                printf("Canal 3: %.2f V\n", v[3]);
-                printf("\nPresione '0' y Enter para detener...\n");
-
-                if (count % 10 == 0) {
-                    save_log_csv(logfile, v[0], v[1], v[2], v[3]);
-                }
-                count++;
-
-                usleep(200000);
-                if (getchar() == '0') {
-                    measuring = false;
-                }
+            draw_measurements(meas_win, v[0], v[1], v[2], v[3]);
+            measuring = false;
+        } else if (ch == '2') {
+            if (logfile[0] == '\0') {
+                time_t now = time(nullptr);
+                char timestr[64];
+                strftime(timestr, sizeof(timestr), "%Y%m%d_%H%M%S", localtime(&now));
+                snprintf(logfile, sizeof(logfile), "log_ads1115_%s.csv", timestr);
             }
-        } else if (opcion == 3) {
-            running = false;
+            measuring = true;
+        }
+
+        if (measuring) {
+            float v[4];
+            for (int i = 0; i < 4; i++) {
+                adc.set_channel(i);
+                v[i] = adc.read_voltage();
+            }
+
+            draw_measurements(meas_win, v[0], v[1], v[2], v[3]);
+
+            if (count % 10 == 0 && logfile[0] != '\0') {
+                save_log_csv(logfile, v[0], v[1], v[2], v[3]);
+            }
+            count++;
+
+            napms(200);
         }
     }
+
+    delwin(meas_win);
+    delwin(menu_win);
+    endwin();
 
     adc.close();
     return 0;

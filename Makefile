@@ -1,5 +1,6 @@
 CXX ?= g++
 CXXFLAGS := -std=c++11 -Wall -Wextra -Iinclude
+LDFLAGS := -lncurses
 
 SRCDIR := src
 INCDIR := include
@@ -15,7 +16,7 @@ OBJECTS := $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS) | $(BINDIR)
-	$(CXX) -o $@ $^ $(CXXFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
