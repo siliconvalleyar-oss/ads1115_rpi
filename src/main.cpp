@@ -41,7 +41,14 @@ void draw_measurements(WINDOW *meas_win, float v0, float v1, float v2, float v3)
     wrefresh(meas_win);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    bool auto_mode = false;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--auto") == 0 || strcmp(argv[i], "-a") == 0) {
+            auto_mode = true;
+        }
+    }
+
     ADS1115 adc(0x48);
 
     if (!adc.init()) {
@@ -73,32 +80,42 @@ int main() {
     int count = 0;
     char logfile[128] = {0};
 
+    if (auto_mode) {
+        measuring = true;
+        time_t now = time(nullptr);
+        char timestr[64];
+        strftime(timestr, sizeof(timestr), "%Y%m%d_%H%M%S", localtime(&now));
+        snprintf(logfile, sizeof(logfile), "log_ads1115_%s.csv", timestr);
+    }
+
     while (running) {
-        if (!measuring) {
+        if (!measuring && !auto_mode) {
             draw_menu(menu_win);
         }
 
         int ch = getch();
-        if (ch == '3' || ch == 'q' || ch == 'Q') {
-            running = false;
-            break;
-        } else if (ch == '1') {
-            measuring = true;
-            float v[4] = {0};
-            for (int i = 0; i < 4; i++) {
-                adc.set_channel(i);
-                v[i] = adc.read_voltage();
+        if (!auto_mode) {
+            if (ch == '3' || ch == 'q' || ch == 'Q') {
+                running = false;
+                break;
+            } else if (ch == '1') {
+                measuring = true;
+                float v[4] = {0};
+                for (int i = 0; i < 4; i++) {
+                    adc.set_channel(i);
+                    v[i] = adc.read_voltage();
+                }
+                draw_measurements(meas_win, v[0], v[1], v[2], v[3]);
+                measuring = false;
+            } else if (ch == '2') {
+                if (logfile[0] == '\0') {
+                    time_t now = time(nullptr);
+                    char timestr[64];
+                    strftime(timestr, sizeof(timestr), "%Y%m%d_%H%M%S", localtime(&now));
+                    snprintf(logfile, sizeof(logfile), "log_ads1115_%s.csv", timestr);
+                }
+                measuring = true;
             }
-            draw_measurements(meas_win, v[0], v[1], v[2], v[3]);
-            measuring = false;
-        } else if (ch == '2') {
-            if (logfile[0] == '\0') {
-                time_t now = time(nullptr);
-                char timestr[64];
-                strftime(timestr, sizeof(timestr), "%Y%m%d_%H%M%S", localtime(&now));
-                snprintf(logfile, sizeof(logfile), "log_ads1115_%s.csv", timestr);
-            }
-            measuring = true;
         }
 
         if (measuring) {
